@@ -1,5 +1,4 @@
 import type { Metadata, Viewport } from 'next';
-import Script from 'next/script';
 import './globals.css';
 
 export const metadata: Metadata = {
@@ -35,12 +34,13 @@ export default function RootLayout({
 }) {
   return (
     <html lang="ru" className="dark">
-      <body className="min-h-dvh antialiased">
-        {/* Telegram WebApp SDK — non-blocking */}
-        <Script
+      <head>
+        <script
           src="https://telegram.org/js/telegram-web-app.js"
-          strategy="afterInteractive"
+          async
         />
+      </head>
+      <body className="min-h-dvh antialiased">
         {children}
       </body>
     </html>

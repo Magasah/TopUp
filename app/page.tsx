@@ -4,7 +4,6 @@ import { useEffect, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/cn';
 
-import { GlassPanel } from '@/components/GlassPanel';
 import { NeonButton } from '@/components/NeonButton';
 import { StepIndicator, type StepKey } from '@/components/StepIndicator';
 import { LanguageToggle } from '@/components/LanguageToggle';
@@ -24,8 +23,7 @@ function useTelegram() {
   const [tg, setTg] = useState<TelegramUserContext | null>(null);
 
   useEffect(() => {
-    const w = window as any;
-    const wa = w.Telegram?.WebApp;
+    const wa = window.Telegram?.WebApp;
     if (!wa) return;
     try {
       wa.ready?.();
@@ -60,8 +58,6 @@ export default function HomePage() {
   const [playerId, setPlayerId] = useState('');
   const [walletId, setWalletId] = useState<WalletId | null>(null);
 
-  const [checkoutErr, setCheckoutErr] = useState<string | null>(null);
-
   const game = useMemo(() => (gameId ? getGame(gameId) : null), [gameId]);
   const item = useMemo(
     () => (game && itemId ? game.items.find((i) => i.id === itemId) ?? null : null),
@@ -77,7 +73,6 @@ export default function HomePage() {
     setItemId(null);
     setPlayerId('');
     setWalletId(null);
-    setCheckoutErr(null);
   }
 
   function handleGameSelect(id: GameId) {
@@ -107,35 +102,31 @@ export default function HomePage() {
   }
 
   function handleCheckout() {
-    const data = buildOrderData();
-    if (!data) return;
-    setCheckoutErr(null);
+    const orderData = buildOrderData();
+    if (!orderData) return;
 
-    let json: string;
+    let encoded: string;
     try {
-      json = JSON.stringify(data);
+      encoded = JSON.stringify(orderData);
     } catch {
-      setCheckoutErr(t(dict.errors.submit, locale));
+      alert('Не удалось сформировать заказ. Попробуйте снова.');
+      return;
+    }
+    if (encoded.length > 4096) {
+      alert('Слишком много данных для Telegram. Обратитесь в поддержку.');
       return;
     }
 
-    if (json.length > 4096) {
-      setCheckoutErr(t(dict.errors.payloadTooLarge, locale));
-      return;
-    }
-
-    const w = typeof window !== 'undefined' ? (window as any) : null;
-    const wa = w?.Telegram?.WebApp;
-    if (!wa?.sendData) {
-      setCheckoutErr(t(dict.errors.needTelegram, locale));
-      return;
-    }
-
-    try {
-      wa.sendData(json);
-      wa.close?.();
-    } catch {
-      setCheckoutErr(t(dict.errors.submit, locale));
+    if (typeof window !== 'undefined' && window.Telegram?.WebApp) {
+      const tg = window.Telegram.WebApp;
+      try {
+        tg.sendData(JSON.stringify(orderData));
+        if (typeof tg.close === 'function') tg.close();
+      } catch {
+        alert('Ошибка отправки заказа. Попробуйте снова.');
+      }
+    } else {
+      alert('Пожалуйста, откройте магазин внутри Telegram.');
     }
   }
 
@@ -297,9 +288,6 @@ export default function HomePage() {
                   )}
                 </AnimatePresence>
 
-                {checkoutErr && (
-                  <div className="text-sm text-rose-400 px-1">{checkoutErr}</div>
-                )}
               </div>
 
               <FooterNav
