@@ -135,9 +135,13 @@ export async function POST(req: Request) {
 
   const orderId = newOrderId();
 
-  // ---------- Prefer Python bot ingest (DB + admin inline buttons) ----------
+  const ingestConfigured = Boolean(
+    process.env.ORDER_INGEST_URL?.trim() && process.env.INTERNAL_API_SECRET?.trim()
+  );
+
+  // ---------- Prefer Python bot ingest (DB + admin UI on the bot host) ----------
   const ingest = await submitOrderToBotIngest(orderId, order);
-  if (process.env.ORDER_INGEST_URL && process.env.INTERNAL_API_SECRET) {
+  if (ingestConfigured) {
     if (!ingest.ok) {
       console.error('[submit] bot ingest error:', ingest.status, ingest.body);
       return NextResponse.json(
@@ -148,12 +152,16 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: true, orderId });
   }
 
-  // ---------- Fallback: direct Telegram sendPhoto (legacy) ----------
+  // ---------- Fallback: direct Telegram sendPhoto (needs TELEGRAM_* on this server) ----------
   const result = await sendOrderToTelegram(order, orderId);
   if (!result.ok) {
     console.error('[submit] telegram error:', result.error);
     return NextResponse.json(
-      { ok: false, error: 'Order accepted locally, but admin notification failed.' },
+      {
+        ok: false,
+        error:
+          'Order accepted locally, but admin notification failed. On Vercel, set ORDER_INGEST_URL (bot base or …/internal/orders) and INTERNAL_API_SECRET to match the Python bot.',
+      },
       { status: 502 }
     );
   }

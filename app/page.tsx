@@ -55,6 +55,12 @@ export default function HomePage() {
   const [locale, setLocale] = useState<Locale>('ru');
   useEffect(() => { setLocale(detectLocale()); }, []);
 
+  const [tgSendAvailable, setTgSendAvailable] = useState(false);
+  useEffect(() => {
+    const w = typeof window !== 'undefined' ? (window as any) : null;
+    if (w?.Telegram?.WebApp?.sendData) setTgSendAvailable(true);
+  }, []);
+
   const tgUser = useTelegram();
 
   const [step, setStep] = useState<StepKey>('game');
@@ -98,6 +104,30 @@ export default function HomePage() {
   function handlePackSelect(id: string) {
     setItemId(id);
     setTimeout(() => go('id'), 240);
+  }
+
+  function handleSendOrderToBot() {
+    if (!game || !item || !wallet || !isValidPlayerId(playerId)) return;
+    const w = typeof window !== 'undefined' ? (window as any) : null;
+    const wa = w?.Telegram?.WebApp;
+    if (!wa?.sendData) return;
+    const itemLabel = typeof item.label === 'string' ? item.label : item.label[locale];
+    const payload = {
+      v: 1 as const,
+      game: game.id,
+      itemId: item.id,
+      itemLabel,
+      amountTjs: item.priceTjs,
+      playerId,
+      wallet: wallet.id,
+      locale,
+      telegram: tgUser ?? undefined,
+    };
+    try {
+      wa.sendData(JSON.stringify(payload));
+    } catch {
+      /* Telegram client may throw if payload > 4096 chars */
+    }
   }
 
   async function handleSubmit() {
@@ -286,6 +316,23 @@ export default function HomePage() {
                         value={`${item.priceTjs} ${t(dict.currency, locale)}`}
                         locale={locale}
                       />
+                      {tgSendAvailable && (
+                        <div className="space-y-2 pt-1">
+                          <p className="text-[11px] text-white/50 leading-snug px-0.5">
+                            {t(dict.pay.sendToBotHint, locale)}
+                          </p>
+                          <NeonButton
+                            type="button"
+                            variant="ghost"
+                            glow="magenta"
+                            full
+                            onClick={handleSendOrderToBot}
+                            disabled={!isValidPlayerId(playerId)}
+                          >
+                            {t(dict.pay.sendToBot, locale)}
+                          </NeonButton>
+                        </div>
+                      )}
                       <ReceiptUpload
                         locale={locale}
                         value={receiptDataUrl}

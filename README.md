@@ -80,7 +80,7 @@ Get your chat id by messaging your bot once and visiting:
 
 1. Create a bot via **@BotFather** → `/newbot`.
 2. Run `/newapp`, attach your bot, set the **Web App URL** to your deployment
-   (`https://your-app.vercel.app`).
+   (production: `https://top-up-opal.vercel.app`).
 3. Add a menu button: `/setmenubutton` → set the same URL.
 4. The app calls `Telegram.WebApp.ready()`, `expand()`, sets header/background
    color to `#0a0a0b`, and reads the user from `initDataUnsafe.user`. The
