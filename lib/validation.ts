@@ -36,33 +36,6 @@ export function sanitizeHandle(input: string | undefined | null): string {
   return String(input).replace(/[^A-Za-z0-9_]/g, '').slice(0, 32);
 }
 
-/** Validate a base64 image data URL: png/jpg/webp, ≤ ~5 MB */
-const DATA_URL_REGEX =
-  /^data:image\/(png|jpe?g|webp);base64,([A-Za-z0-9+/=]+)$/;
-const MAX_IMAGE_BYTES = 5 * 1024 * 1024; // 5 MB
-
-export function isValidImageDataUrl(dataUrl: string): boolean {
-  if (typeof dataUrl !== 'string') return false;
-  const m = DATA_URL_REGEX.exec(dataUrl);
-  if (!m) return false;
-  // base64 length → bytes (approx)
-  const base64Len = m[2].length;
-  const bytes = Math.floor(base64Len * 0.75);
-  return bytes > 0 && bytes <= MAX_IMAGE_BYTES;
-}
-
-export function bytesFromDataUrl(dataUrl: string): {
-  mime: string;
-  bytes: number;
-  buffer: Buffer;
-} | null {
-  const m = DATA_URL_REGEX.exec(dataUrl);
-  if (!m) return null;
-  const mime = `image/${m[1] === 'jpg' ? 'jpeg' : m[1]}`;
-  const buffer = Buffer.from(m[2], 'base64');
-  return { mime, bytes: buffer.byteLength, buffer };
-}
-
 /** Whitelisted enums to avoid arbitrary strings flowing into our pipeline */
 export const ALLOWED_GAMES = ['freefire', 'pubg'] as const;
 export const ALLOWED_WALLETS = ['dc', 'alif', 'mastercard', 'milli'] as const;

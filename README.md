@@ -17,13 +17,13 @@ or **Railway** as a single Next.js project.
 - **Cyberpunk neon accents** — Electric Blue, Magenta, Acid Green; animated
   conic-gradient borders, glow pulses, shimmer text.
 - **Smooth, springy transitions** powered by Framer Motion.
-- **Multi-step flow:** Game → Pack → Player ID → Payment → Receipt → Done.
-- **Hardened input validation** — numeric-only Player ID, regex enforced both
-  client- and server-side; HTML escaping for Telegram messages; image MIME and
-  size checks; whitelisted enums; in-memory rate limiting.
-- **Telegram Bot integration** — sends a single message with the receipt photo
-  and an HTML caption containing Game · Pack · Amount · Player ID · Wallet ·
-  Telegram handle.
+- **Multi-step flow:** Game → Pack → Player ID → Payment → **checkout in bot**
+  (Mini App sends JSON via `Telegram.WebApp.sendData`, then closes; the user
+  sends the payment screenshot in the Telegram chat).
+- **Hardened input validation** — numeric-only Player ID (6–14 digits) in the UI;
+  catalog and prices ship with the app (your Python bot should re-validate).
+- **No Vercel API for orders** — no `/api/submit`, no server-side Telegram calls
+  from this repo; avoids 502s and keeps secrets on the bot host only.
 - **Locale auto-detect** from Telegram WebApp `language_code` with manual toggle.
 - **Mobile-first**, safe-area aware, no horizontal scroll, uses `100dvh`.
 
@@ -37,8 +37,8 @@ or **Railway** as a single Next.js project.
 | Language     | **TypeScript** strict                                |
 | Styling      | **Tailwind CSS 3** + custom CSS layer for glassmorphism |
 | Animation    | **Framer Motion 11**                                 |
-| Backend      | Next.js Route Handler `/api/submit` (Node runtime)  |
-| Bot dispatch | Telegram **`sendPhoto`** via FormData                |
+| Checkout     | **`Telegram.WebApp.sendData`** + **`close()`** → your aiogram bot |
+| Backend API  | _None for orders_ (static UI + client-side catalog)              |
 
 ---
 
@@ -48,10 +48,8 @@ or **Railway** as a single Next.js project.
 # 1. Install
 npm install
 
-# 2. Configure env
+# 2. Configure env (optional wallet overrides)
 cp .env.example .env.local
-# Fill TELEGRAM_BOT_TOKEN and TELEGRAM_ADMIN_CHAT_ID
-# Optionally override NEXT_PUBLIC_WALLET_*
 
 # 3. Run dev server (http://localhost:3000)
 npm run dev
@@ -60,19 +58,14 @@ npm run dev
 npm run build && npm start
 ```
 
-### Required environment variables
+### Environment variables
 
-| Var                        | Purpose                                                       |
-| -------------------------- | ------------------------------------------------------------- |
-| `TELEGRAM_BOT_TOKEN`       | Token from [@BotFather](https://t.me/BotFather)               |
-| `TELEGRAM_ADMIN_CHAT_ID`   | Numeric chat id that will receive new orders                  |
-| `NEXT_PUBLIC_WALLET_DC`          | DC City phone shown to the buyer                         |
-| `NEXT_PUBLIC_WALLET_ALIF`      | Alif Mobi phone                                           |
-| `NEXT_PUBLIC_WALLET_MASTERCARD`| Mastercard number                                         |
-| `NEXT_PUBLIC_WALLET_MILLI`     | Корти милли number                                        |
+| Var | Purpose |
+|-----|---------|
+| `NEXT_PUBLIC_WALLET_*` | Optional overrides for displayed wallet numbers |
+| `NEXT_PUBLIC_WEB_APP_URL` | Documentation / parity with BotFather URL |
 
-Get your chat id by messaging your bot once and visiting:
-`https://api.telegram.org/bot<TOKEN>/getUpdates`
+Bot token, admin IDs, and ingest live in **[TopUp-Bot](https://github.com/Magasah/TopUp-Bot)** (Python), not in this frontend repo.
 
 ---
 
@@ -83,31 +76,19 @@ Get your chat id by messaging your bot once and visiting:
    (production: `https://top-up-opal.vercel.app`).
 3. Add a menu button: `/setmenubutton` → set the same URL.
 4. The app calls `Telegram.WebApp.ready()`, `expand()`, sets header/background
-   color to `#0a0a0b`, and reads the user from `initDataUnsafe.user`. The
-   user's handle is forwarded with every order.
+   color to `#0a0a0b`, reads `initDataUnsafe.user`, and on checkout calls
+   `sendData(JSON.stringify(order))` then `close()` so the bot can ask for the receipt in chat.
 
 ---
 
 ## 🔐 Security model
 
-- **Player ID** must match `^[0-9]{6,14}$`. Pasting strips non-digits before
-  validation. Validated again server-side.
-- **Whitelisted enums** for `game`, `wallet`, `locale` — anything else returns
-  `400`.
-- **Server re-derives** `itemLabel` and `amountTjs` from the catalog so the
-  client cannot inflate or change pricing.
-- **Receipt** must be a `data:image/(png|jpe?g|webp);base64,...` URL; the
-  decoded payload size is capped at **5 MB**.
-- **HTML escaping** of every user-supplied string before injecting into the
-  Telegram caption (which uses `parse_mode=HTML`). XSS into the bot is
-  impossible.
-- **No SQL** in this repo. If you add a database, parameterize all queries —
-  do not concatenate strings.
-- **Rate limiting** — 6 requests / minute / IP via in-memory bucket. For
-  serverless production, swap `RATE_BUCKET` for **Upstash Redis** or
-  **Vercel KV**.
-- **Headers** — `X-Frame-Options: ALLOWALL` (required for Telegram Mini Apps),
-  `X-Content-Type-Options: nosniff`, restrictive `Permissions-Policy`.
+- **Player ID** in the UI: `^[0-9]{6,14}$`. The bot should validate again.
+- **Payload** to the bot is JSON from the client (max **4096** bytes per Telegram).
+  Treat amounts and catalog as untrusted until the bot checks them.
+- **Receipt images** are **not** uploaded from this web app; users send photos in Telegram.
+- **No bot token** in this repository — only in your bot deployment.
+- **Headers** — `X-Frame-Options: ALLOWALL` (Telegram Mini App), `X-Content-Type-Options: nosniff`, etc. (`next.config.js`).
 
 ---
 
@@ -115,30 +96,27 @@ Get your chat id by messaging your bot once and visiting:
 
 ```
 app/
-  api/submit/route.ts   ← Order endpoint (validation + Telegram dispatch)
   globals.css           ← Liquid Glass + neon design system
   layout.tsx            ← Loads Telegram WebApp SDK, viewport
-  page.tsx              ← Main multi-step checkout flow
+  page.tsx              ← Catalog + checkout via sendData / close
 components/
   GlassPanel.tsx        ← Liquid Glass surface primitive
   NeonButton.tsx        ← Premium button with sheen + glow
   GameCard.tsx          ← Big glowing game cards
-  PriceCard.tsx         ← Price tile with shimmer
+  ProductCard.tsx       ← Pack tiles
   PlayerIdInput.tsx     ← Hardened numeric input
   WalletCard.tsx        ← Payment method + Copy row
-  ReceiptUpload.tsx     ← Drag/drop screenshot uploader
-  StepIndicator.tsx     ← Animated progress pills
-  LanguageToggle.tsx    ← RU / TJ toggle (layout-animated)
-  OrderSummary.tsx      ← Sticky-ish order recap
+  StepIndicator.tsx     ← Progress pills
+  LanguageToggle.tsx    ← RU / TJ toggle
+  OrderSummary.tsx      ← Order recap
 lib/
   i18n.ts               ← Russian + Tajik strings, detection
   games.ts              ← Free Fire / PUBG catalog & prices
   wallets.ts            ← DC / Alif / Mastercard / Milli config
-  validation.ts         ← Regex, sanitizers, escapers
-  telegram.ts           ← sendPhoto with HTML caption
+  validation.ts         ← Player ID validation helpers
   cn.ts                 ← classnames helper
 types/
-  index.ts              ← Shared TS types
+  index.ts              ← Shared TS types (incl. WebAppOrderData)
 public/
   games/        ← `freefire.png` / `pubg.png` (+ SVG fallback)
   cards/        ← `dc.png`, `alif.png`, `mastercard.png`, `milli.png`
@@ -154,8 +132,8 @@ public/
 
 1. Push the repo to GitHub.
 2. Import into Vercel — framework is auto-detected.
-3. Add the 5 environment variables in **Project → Settings → Environment Variables**.
-4. Deploy. The route `/api/submit` runs on the **Node.js** runtime.
+3. Add any `NEXT_PUBLIC_*` overrides in **Project → Settings → Environment Variables**.
+4. Deploy — static/UI only; no order API route on Vercel.
 
 ### Railway
 
@@ -177,8 +155,8 @@ Edit `lib/games.ts`. Each item is:
 { id: 'pubg-660', label: '660 UC', priceTjs: 105, popular: true }
 ```
 
-`itemLabel` and `amountTjs` are re-read from this file server-side, so prices
-can never be tampered with from the client.
+Publish price changes by redeploying the Mini App; the bot should still verify
+amounts against its own catalog when processing `web_app_data`.
 
 ---
 

@@ -1,15 +1,20 @@
-# Security
-
-## Telegram bot token
-
-- Store **`TELEGRAM_BOT_TOKEN`** only in **environment variables** (Vercel / Railway / `.env.local` on your machine).
-- **Never** commit the token to git, paste it into frontend code, or share it in chat — anyone with the token controls your bot.
-
-If a token was exposed:
-
-1. Open [@BotFather](https://t.me/BotFather) → `/revoke` or regenerate the token for this bot.
-2. Update the secret on every deployment target.
-
-## Payment details
-
-Card numbers and wallet IDs are **public for checkout UX** but treat **`TELEGRAM_ADMIN_CHAT_ID`** as sensitive — it determines where orders are delivered.
+# Security
+
+## This repository (Mini App)
+
+- **No Telegram bot token** is required for the Next.js app. Checkout uses
+  **`Telegram.WebApp.sendData`** only; secrets stay on your **Python bot** host
+  ([TopUp-Bot](https://github.com/Magasah/TopUp-Bot)).
+- **Never** commit real `.env.local` values if you add any private keys later.
+
+## Bot token (on the bot server only)
+
+- Store **`BOT_TOKEN`** only in the bot’s environment (VPS, PaaS, `.env` on the
+  bot machine — gitignored).
+- If a token was exposed: [@BotFather](https://t.me/BotFather) → revoke / new token.
+
+## Payment details
+
+Wallet numbers shown in the UI are **public** for copy/paste checkout UX.
+Users send payment proof as **photos in Telegram**, not through this web app.
+

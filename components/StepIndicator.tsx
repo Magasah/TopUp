@@ -5,8 +5,8 @@ import { cn } from '@/lib/cn';
 import { dict, t } from '@/lib/i18n';
 import type { Locale } from '@/types';
 
-export type StepKey = 'game' | 'pack' | 'id' | 'pay' | 'done';
-const ORDER: StepKey[] = ['game', 'pack', 'id', 'pay', 'done'];
+export type StepKey = 'game' | 'pack' | 'id' | 'pay';
+const ORDER: StepKey[] = ['game', 'pack', 'id', 'pay'];
 
 interface Props {
   current: StepKey;
