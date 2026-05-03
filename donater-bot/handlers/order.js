@@ -1,6 +1,6 @@
 import { Composer } from 'grammy';
 import { randomInt } from 'crypto';
-import { productById } from '../database/db.js';
+import { productById, gamesListActive } from '../database/db.js';
 import {
   isCaptchaBlocked,
   registerCaptchaFail,
@@ -14,7 +14,6 @@ import {
   paymentMethodsKeyboard,
   mainMenuKeyboardJson,
 } from '../utils/keyboards.js';
-import { gamesListActive } from '../database/db.js';
 import { sendMessageRaw } from '../utils/tg_api.js';
 
 export const orderComposer = new Composer();
