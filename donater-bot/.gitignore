@@ -1,6 +1,9 @@
-node_modules/
+__pycache__/
+*.pyc
 .env
-database/*.db
-database/*.db-journal
-*.log
-.DS_Store
+.bot_singleton.lock
+bootstrap*.py
+*.db
+node_modules/
+venv/
+.venv/

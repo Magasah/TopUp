@@ -5,6 +5,8 @@
 # --- Python (entire bot + any stray scripts) ---
 TopUpTJ_Bot/
 *.py
+# Исключение: Aiogram-бот в donater-bot/ должен коммититься
+!donater-bot/**/*.py
 *.pyw
 *.pyd
 **/venv/
