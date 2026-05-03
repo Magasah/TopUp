@@ -136,13 +136,9 @@ async def raw_edit_reply_markup(
 
 
 def style_btn(text: str, callback_data: str, style: Optional[str] = None) -> dict:
-    b: Dict[str, Any] = {"text": text, "callback_data": callback_data}
-    if style:
-        if style == "danger":
-            b["style"] = "destructive"
-        else:
-            b["style"] = style
-    return b
+    """Только text + callback_data. Поле ``style`` в Bot API для inline даёт 400
+    (invalid button style) у части клиентов/версий API — не отправляем."""
+    return {"text": text, "callback_data": callback_data}
 
 
 def main_menu_markup(lang: str) -> dict:

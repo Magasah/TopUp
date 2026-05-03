@@ -41,13 +41,10 @@ async def _main_menu_markup(t):
     rows = []
     buf = []
     for g in games:
-        name = g["name"]
-        st = "destructive" if "free" in name.lower() else "primary"
         buf.append(
             {
                 "text": f"{g['emoji']} {g['name']}"[:64],
                 "callback_data": f"nav:game:{g['id']}",
-                "style": st,
             }
         )
         if len(buf) == 2:
