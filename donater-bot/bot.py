@@ -62,24 +62,26 @@ async def main() -> None:
     dp.include_router(admin_router)
     dp.include_router(misc.router)
 
-    await bot.delete_webhook(drop_pending_updates=False)
     try:
-        wh = await bot.get_webhook_info()
-        if getattr(wh, "url", None):
-            logging.getLogger("bot").warning(
-                "После delete_webhook URL всё ещё: %s — при конфликте проверьте API вручную.",
-                wh.url,
-            )
-    except Exception as exc:
-        logging.getLogger("bot").debug("get_webhook_info: %s", exc)
+        await bot.delete_webhook(drop_pending_updates=True)
+        try:
+            wh = await bot.get_webhook_info()
+            if getattr(wh, "url", None):
+                log.warning(
+                    "После delete_webhook URL всё ещё: %s — проверьте API вручную.",
+                    wh.url,
+                )
+        except Exception as exc:
+            log.debug("get_webhook_info: %s", exc)
 
-    logging.getLogger("bot").info(
-        "Long polling. Если в логах TelegramConflictError (409): "
-        "остановите ВСЕ другие процессы с этим BOT_TOKEN (второй python bot.py, "
-        "node index.js / Grammy, VPS, PaaS), закройте лишние терминалы и диспетчер задач (node.exe). "
-        "Одновременно может работать только один getUpdates на токен."
-    )
-    await dp.start_polling(bot)
+        log.info(
+            "Long polling. TelegramConflictError (409) означает второй getUpdates с тем же BOT_TOKEN "
+            "(другой процесс / сервер / webhook). delete_webhook только снимает webhook; "
+            "одновременно long poll может только один клиент."
+        )
+        await dp.start_polling(bot)
+    finally:
+        await bot.session.close()
 
 
 if __name__ == "__main__":
