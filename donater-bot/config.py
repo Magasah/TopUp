@@ -1,12 +1,16 @@
 import os
 from pathlib import Path
-from typing import FrozenSet, Set
+from typing import FrozenSet, Optional, Set
 
 from dotenv import load_dotenv
 
 load_dotenv()
 
 BASE_DIR = Path(__file__).resolve().parent
+
+# «Я подписался» — новый callback; старые клавиатуры могли слать sub:check
+CHECK_SUBSCRIPTION_CB = "check_subscription"
+CHECK_SUBSCRIPTION_CB_LEGACY = "sub:check"
 
 
 def _parse_admin_ids(raw: str) -> FrozenSet[int]:
@@ -16,6 +20,20 @@ def _parse_admin_ids(raw: str) -> FrozenSet[int]:
         if part.isdigit():
             out.add(int(part))
     return frozenset(out)
+
+
+def _http_or_tg_url(raw: Optional[str], default: str) -> str:
+    """Телеграм не принимает url='' у inline-кнопки; tg:// и http(s) ок."""
+    if raw is None:
+        return default
+    u = raw.strip()
+    if not u:
+        return default
+    if u.startswith("tg://"):
+        return u
+    if u.startswith("http://") or u.startswith("https://"):
+        return u
+    return default
 
 
 class Config:
@@ -35,7 +53,9 @@ class Config:
     alif_number: str = os.getenv("ALIF_NUMBER", "+992888788181")
     mastercard_number: str = os.getenv("MASTERCARD_NUMBER", "5413525250170749")
     milli_number: str = os.getenv("MILLI_NUMBER", "")
-    support_url: str = os.getenv("SUPPORT_URL", "https://t.me/vvewrix")
+    support_url: str = _http_or_tg_url(
+        os.getenv("SUPPORT_URL"), "https://t.me/vvewrix"
+    )
     support_manager_id: str = os.getenv("SUPPORT_MANAGER_ID", "7679557111")
     fsm_ttl_minutes: int = int(os.getenv("FSM_TTL_MINUTES", "30"))
     anti_spam_per_minute: int = int(os.getenv("ANTI_SPAM_PER_MINUTE", "5"))

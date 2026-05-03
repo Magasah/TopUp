@@ -1,4 +1,4 @@
-"""Raw Telegram HTTP JSON — inline-кнопки с полем style."""
+"""Raw Telegram HTTP JSON для sendMessage / sendPhoto."""
 from __future__ import annotations
 
 import json
@@ -7,10 +7,16 @@ from pathlib import Path
 from typing import Any, Dict, Optional
 
 import aiohttp
+from aiogram.types import InlineKeyboardMarkup
 
 from config import config
 
 log = logging.getLogger(__name__)
+
+
+def markup_to_reply_dict(markup: InlineKeyboardMarkup) -> Dict[str, Any]:
+    """Конвертация InlineKeyboardMarkup → объект reply_markup для Bot API."""
+    return markup.model_dump(mode="json", exclude_none=True)
 
 
 def _base() -> str:

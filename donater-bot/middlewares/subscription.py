@@ -5,13 +5,17 @@ from aiogram import BaseMiddleware
 from aiogram.enums import ChatMemberStatus
 from aiogram.types import CallbackQuery, Message, TelegramObject
 
-from config import config
+from config import (
+    CHECK_SUBSCRIPTION_CB,
+    CHECK_SUBSCRIPTION_CB_LEGACY,
+    config,
+)
 
 log = logging.getLogger(__name__)
 
 
 class SubscriptionMiddleware(BaseMiddleware):
-    """Блокирует неподписанных, кроме /start и sub:check."""
+    """Блокирует неподписанных, кроме /start и проверки подписки."""
 
     async def __call__(
         self,
@@ -32,7 +36,10 @@ class SubscriptionMiddleware(BaseMiddleware):
         elif isinstance(event, CallbackQuery):
             uid = event.from_user.id if event.from_user else None
             chat_id = event.message.chat.id if event.message else None
-            if event.data == "sub:check":
+            if event.data in (
+                CHECK_SUBSCRIPTION_CB,
+                CHECK_SUBSCRIPTION_CB_LEGACY,
+            ):
                 return await handler(event, data)
 
         if not uid or not chat_id:
