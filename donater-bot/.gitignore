@@ -1,9 +1,0 @@
-__pycache__/
-*.pyc
-.env
-.bot_singleton.lock
-bootstrap*.py
-*.db
-node_modules/
-venv/
-.venv/
